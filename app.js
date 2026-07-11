@@ -26,6 +26,90 @@ const STATE = {
 };
 
 // ═══════════════════════════════════════════
+// LOCALSTORAGE PERSISTENCE
+// ═══════════════════════════════════════════
+const STORAGE_KEY = 'dlmm_testnet_state';
+
+function saveState() {
+  const toSave = {
+    wallet: STATE.wallet,
+    balances: STATE.balances,
+    positions: STATE.positions.map(p => ({
+      ...p,
+      pair: { id: p.pair.id, base: p.pair.base, quote: p.pair.quote, type: p.pair.type, feeTiers: p.pair.feeTiers, binSteps: p.pair.binSteps },
+    })),
+    closedPositions: STATE.closedPositions.map(p => ({
+      ...p,
+      pair: { id: p.pair.id, base: p.pair.base, quote: p.pair.quote, type: p.pair.type, feeTiers: p.pair.feeTiers, binSteps: p.pair.binSteps },
+    })),
+    decisionLog: STATE.decisionLog,
+    lessons: STATE.lessons,
+    lastFaucet: STATE.lastFaucet,
+    signalWeights: STATE.signalWeights,
+    savedAt: Date.now(),
+  };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  } catch (e) {
+    console.warn('localStorage save failed:', e);
+  }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (!saved || !saved.wallet) return false;
+
+    STATE.wallet = saved.wallet;
+    STATE.balances = saved.balances || {};
+    STATE.decisionLog = saved.decisionLog || [];
+    STATE.lessons = saved.lessons || [];
+    STATE.lastFaucet = saved.lastFaucet;
+    STATE.signalWeights = saved.signalWeights || {};
+    STATE.closedPositions = saved.closedPositions || [];
+
+    // Restore positions — re-link pair objects from PAIRS
+    STATE.positions = (saved.positions || []).map(sp => {
+      const pair = PAIRS.find(p => p.id === sp.pairId) || sp.pair;
+      return { ...sp, pair };
+    });
+
+    // Restart fee accumulation for active positions
+    STATE.positions.forEach(pos => startFeeAccumulation(pos));
+
+    // Update UI
+    document.getElementById('wallet-addr').textContent = STATE.wallet.slice(0, 6) + '...' + STATE.wallet.slice(-4);
+    document.getElementById('connect-btn').textContent = 'Disconnect';
+    document.getElementById('connect-btn').onclick = disconnectWallet;
+    document.getElementById('faucet-btn').disabled = false;
+
+    renderTokenList();
+    updateTotalBalance();
+    renderPositionList();
+    renderDecisionLog();
+
+    return true;
+  } catch (e) {
+    console.warn('localStorage load failed:', e);
+    return false;
+  }
+}
+
+function clearState() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (e) {}
+}
+
+// Auto-save every 5 seconds
+setInterval(saveState, 5000);
+
+// Save on page unload
+window.addEventListener('beforeunload', saveState);
+
+// ═══════════════════════════════════════════
 // MERIDIAN SCREENING — Two scoring systems
 // ═══════════════════════════════════════════
 
@@ -467,6 +551,7 @@ function autoClosePosition(id, reason) {
   updateTotalBalance();
   renderPositionList();
   showToast(`🔴 ${pos.pairId} ditutup (${reason}). Fee: $${pos.feeCollected.toFixed(2)}`);
+  saveState();
 }
 
 // ═══════════════════════════════════════════
@@ -599,6 +684,7 @@ function connectWallet(address) {
   document.getElementById('wallet-modal').style.display = 'none';
   renderTokenList();
   updateTotalBalance();
+  saveState();
 }
 
 function disconnectWallet() {
@@ -608,6 +694,7 @@ function disconnectWallet() {
   STATE.decisionLog = [];
   STATE.closedPositions = [];
   STATE.lessons = [];
+  clearState(); // Clear localStorage
   document.getElementById('wallet-addr').textContent = 'Not connected';
   document.getElementById('connect-btn').textContent = 'Connect Wallet';
   document.getElementById('connect-btn').onclick = () => document.getElementById('wallet-modal').style.display = 'flex';
@@ -652,6 +739,7 @@ function timeUntilFaucet() {
 document.getElementById('claim-all-btn').onclick = () => {
   Object.entries(FAUCET_AMOUNTS).forEach(([sym, amt]) => STATE.balances[sym] = (STATE.balances[sym] || 0) + amt);
   STATE.lastFaucet = Date.now();
+  saveState();
   renderTokenList();
   updateTotalBalance();
   document.getElementById('faucet-modal').style.display = 'none';
@@ -924,6 +1012,7 @@ function addLiquidity() {
   renderPositionList();
   startFeeAccumulation(position);
   showToast(`✅ ${pair.id} dibuka! $${totalUSD.toFixed(2)} terdeploy.`);
+  saveState();
   renderDLMMPanel();
 }
 
@@ -1016,6 +1105,7 @@ function removePosition(id) {
   updateTotalBalance();
   renderPositionList();
   showToast(`🔴 ${pos.pair.id} ditutup. Fee: +$${pos.feeCollected.toFixed(2)}`);
+  saveState();
 }
 
 // ═══════════════════════════════════════════
@@ -1129,9 +1219,16 @@ function fmtBal(n, sym) { if (!n) return '0'; if (n >= 1e6) return (n / 1e6).toF
 function fmtRate(rate) { if (!rate) return '—'; if (rate < 0.000001) return rate.toExponential(4); if (rate < 0.01) return rate.toFixed(8); if (rate < 1) return rate.toFixed(6); return rate.toFixed(4); }
 
 // ═══════════════════════════════════════════
-// Init
+// Init — load from localStorage or fresh
 // ═══════════════════════════════════════════
 
 fetchPrices();
 renderDecisionLog();
 setInterval(fetchPrices, 30000);
+
+// Try to restore state from localStorage
+if (!loadState()) {
+  console.log('No saved state found, starting fresh');
+} else {
+  console.log('State restored from localStorage');
+}
