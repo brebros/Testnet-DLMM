@@ -1324,6 +1324,16 @@ setInterval(fetchPrices, 30000);
 
 // Try to restore state from localStorage or cloud
 (async () => {
+  // Auto-setup Gist token from URL parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const gistParam = urlParams.get('gist');
+  if (gistParam) {
+    setGistToken(gistParam);
+    // Remove token from URL without reload
+    window.history.replaceState({}, '', window.location.pathname);
+    console.log('[cloud] Token auto-configured from URL');
+  }
+
   const source = await loadState();
   const statusEl = document.getElementById('persist-status');
   if (source === 'cloud') {
