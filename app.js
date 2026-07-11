@@ -35,7 +35,7 @@ const GIST_ID_KEY = 'dlmm_gist_id';
 // ── Cloud Sync (GitHub Gist) ──
 function getGistToken() { return localStorage.getItem(GIST_TOKEN_KEY) || ''; }
 function setGistToken(t) { localStorage.setItem(GIST_TOKEN_KEY, t); }
-function getGistId() { return localStorage.getItem(GIST_ID_KEY) || ''; }
+function getGistId() { return localStorage.getItem(GIST_ID_KEY) || '6910f410e7bdf730f55f65746d1bd203'; }
 function setGistId(id) { localStorage.setItem(GIST_ID_KEY, id); }
 
 function getStateJSON() {
