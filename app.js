@@ -31,6 +31,7 @@ const STATE = {
 const STORAGE_KEY = 'dlmm_testnet_state';
 
 function saveState() {
+  console.log('[saveState] called, wallet:', STATE.wallet, 'positions:', STATE.positions.length);
   const toSave = {
     wallet: STATE.wallet,
     balances: STATE.balances,
@@ -50,6 +51,7 @@ function saveState() {
   };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    console.log('[saveState] saved', JSON.stringify(toSave).length, 'chars to localStorage');
   } catch (e) {
     console.warn('localStorage save failed:', e);
   }
@@ -58,6 +60,7 @@ function saveState() {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
+    console.log('[loadState] raw:', raw ? raw.length + ' chars' : 'null');
     if (!raw) return false;
     const saved = JSON.parse(raw);
     if (!saved || !saved.wallet) return false;
@@ -1227,8 +1230,12 @@ renderDecisionLog();
 setInterval(fetchPrices, 30000);
 
 // Try to restore state from localStorage
-if (!loadState()) {
-  console.log('No saved state found, starting fresh');
+const stateRestored = loadState();
+const statusEl = document.getElementById('persist-status');
+if (stateRestored) {
+  console.log('✅ State restored from localStorage');
+  if (statusEl) { statusEl.textContent = '💾 State restored'; statusEl.style.color = '#4ade80'; }
 } else {
-  console.log('State restored from localStorage');
+  console.log('ℹ️ No saved state, starting fresh');
+  if (statusEl) { statusEl.textContent = '🆕 Fresh session'; statusEl.style.color = '#8b949e'; }
 }
