@@ -29,10 +29,17 @@ const STATE = {
 // LOCALSTORAGE PERSISTENCE
 // ═══════════════════════════════════════════
 const STORAGE_KEY = 'dlmm_testnet_state';
+const GIST_TOKEN_KEY = 'dlmm_gist_token';
+const GIST_ID_KEY = 'dlmm_gist_id';
 
-function saveState() {
-  console.log('[saveState] called, wallet:', STATE.wallet, 'positions:', STATE.positions.length);
-  const toSave = {
+// ── Cloud Sync (GitHub Gist) ──
+function getGistToken() { return localStorage.getItem(GIST_TOKEN_KEY) || ''; }
+function setGistToken(t) { localStorage.setItem(GIST_TOKEN_KEY, t); }
+function getGistId() { return localStorage.getItem(GIST_ID_KEY) || ''; }
+function setGistId(id) { localStorage.setItem(GIST_ID_KEY, id); }
+
+function getStateJSON() {
+  return JSON.stringify({
     wallet: STATE.wallet,
     balances: STATE.balances,
     positions: STATE.positions.map(p => ({
@@ -48,21 +55,97 @@ function saveState() {
     lastFaucet: STATE.lastFaucet,
     signalWeights: STATE.signalWeights,
     savedAt: Date.now(),
-  };
+    version: 3,
+  });
+}
+
+async function syncToCloud() {
+  const token = getGistToken();
+  if (!token) return;
+  const gistId = getGistId();
+  const body = getStateJSON();
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-    console.log('[saveState] saved', JSON.stringify(toSave).length, 'chars to localStorage');
+    if (gistId) {
+      // Update existing gist
+      const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: { 'dlmm-state.json': { content: body } } }),
+      });
+      if (!res.ok) {
+        if (res.status === 404) {
+          // Gist deleted, create new one
+          setGistId('');
+          return syncToCloud();
+        }
+        console.warn('Gist update failed:', res.status);
+      }
+    } else {
+      // Create new gist
+      const res = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: 'DLMM Testnet Simulator State — auto-sync',
+          public: false,
+          files: { 'dlmm-state.json': { content: body } },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGistId(data.id);
+        console.log('[cloud] Created gist:', data.id);
+      } else {
+        console.warn('Gist create failed:', res.status);
+      }
+    }
+  } catch (e) {
+    console.warn('Cloud sync error:', e);
+  }
+}
+
+async function loadFromCloud() {
+  const token = getGistToken();
+  const gistId = getGistId();
+  if (!token || !gistId) return false;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { 'Authorization': `token ${token}` },
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const content = data.files?.['dlmm-state.json']?.content;
+    if (!content) return false;
+    const saved = JSON.parse(content);
+    if (!saved || !saved.wallet) return false;
+    return saved;
+  } catch (e) {
+    console.warn('Cloud load error:', e);
+    return false;
+  }
+}
+
+function saveState() {
+  const toSave = getStateJSON();
+  try {
+    localStorage.setItem(STORAGE_KEY, toSave);
+    // Also sync to cloud in background
+    syncToCloud();
   } catch (e) {
     console.warn('localStorage save failed:', e);
   }
 }
 
-function loadState() {
+async function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    console.log('[loadState] raw:', raw ? raw.length + ' chars' : 'null');
-    if (!raw) return false;
-    const saved = JSON.parse(raw);
+    // Try cloud first
+    let saved = await loadFromCloud();
+    let source = 'cloud';
+    if (!saved) {
+      // Fallback to localStorage
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) { saved = JSON.parse(raw); source = 'local'; }
+    }
     if (!saved || !saved.wallet) return false;
 
     STATE.wallet = saved.wallet;
@@ -73,16 +156,13 @@ function loadState() {
     STATE.signalWeights = saved.signalWeights || {};
     STATE.closedPositions = saved.closedPositions || [];
 
-    // Restore positions — re-link pair objects from PAIRS
     STATE.positions = (saved.positions || []).map(sp => {
       const pair = PAIRS.find(p => p.id === sp.pairId) || sp.pair;
       return { ...sp, pair };
     });
 
-    // Restart fee accumulation for active positions
     STATE.positions.forEach(pos => startFeeAccumulation(pos));
 
-    // Update UI
     document.getElementById('wallet-addr').textContent = STATE.wallet.slice(0, 6) + '...' + STATE.wallet.slice(-4);
     document.getElementById('connect-btn').textContent = 'Disconnect';
     document.getElementById('connect-btn').onclick = disconnectWallet;
@@ -93,23 +173,28 @@ function loadState() {
     renderPositionList();
     renderDecisionLog();
 
-    return true;
+    console.log(`[loadState] Restored from ${source}`);
+    return source;
   } catch (e) {
-    console.warn('localStorage load failed:', e);
+    console.warn('loadState failed:', e);
     return false;
   }
 }
 
 function clearState() {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (e) {}
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  const gistId = getGistId();
+  const token = getGistToken();
+  if (gistId && token) {
+    fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `token ${token}` },
+    }).catch(() => {});
+    setGistId('');
+  }
 }
 
-// Auto-save every 5 seconds
 setInterval(saveState, 5000);
-
-// Save on page unload
 window.addEventListener('beforeunload', saveState);
 
 // ═══════════════════════════════════════════
@@ -1237,13 +1322,15 @@ fetchPrices();
 renderDecisionLog();
 setInterval(fetchPrices, 30000);
 
-// Try to restore state from localStorage
-const stateRestored = loadState();
-const statusEl = document.getElementById('persist-status');
-if (stateRestored) {
-  console.log('✅ State restored from localStorage');
-  if (statusEl) { statusEl.textContent = '💾 State restored'; statusEl.style.color = '#4ade80'; }
-} else {
-  console.log('ℹ️ No saved state, starting fresh');
-  if (statusEl) { statusEl.textContent = '🆕 Fresh session'; statusEl.style.color = '#8b949e'; }
-}
+// Try to restore state from localStorage or cloud
+(async () => {
+  const source = await loadState();
+  const statusEl = document.getElementById('persist-status');
+  if (source === 'cloud') {
+    if (statusEl) { statusEl.textContent = '☁️ Cloud synced'; statusEl.style.color = '#4ade80'; }
+  } else if (source === 'local') {
+    if (statusEl) { statusEl.textContent = '💾 Local restored'; statusEl.style.color = '#f59e0b'; }
+  } else {
+    if (statusEl) { statusEl.textContent = '🆕 Fresh'; statusEl.style.color = '#8b949e'; }
+  }
+})();

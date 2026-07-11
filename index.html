@@ -22,6 +22,7 @@
       </div>
       <div class="price-ticker" id="sol-ticker">SOL $—</div>
       <span id="persist-status" style="font-size:11px;color:#8b949e;">—</span>
+      <button onclick="document.getElementById('settings-modal').style.display='flex'" style="font-size:10px;padding:2px 6px;border:1px solid #30363d;background:transparent;color:#8b949e;border-radius:4px;cursor:pointer;" title="Settings">⚙️</button>
       <button onclick="clearState();location.reload();" style="font-size:10px;padding:2px 6px;border:1px solid #30363d;background:transparent;color:#8b949e;border-radius:4px;cursor:pointer;" title="Clear saved state">🗑️</button>
     </div>
   </nav>
@@ -125,8 +126,21 @@
     </section>
   </main>
 
-  <script src="tokens.js?v=3"></script>
-  <script src="app.js?v=3"></script>
-  <script src="chart.js?v=3"></script>
+  <!-- SETTINGS MODAL -->
+  <div class="modal-overlay" id="settings-modal" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">⚙️ Settings</div>
+      <p class="modal-desc">Cloud sync via GitHub Gist — state ke-share antar device. Masukkan GitHub Personal Access Token (scope: <code>gist</code>).</p>
+      <label style="font-size:11px;color:#8b949e;margin-bottom:4px;">GitHub PAT</label>
+      <input type="password" id="gist-token-input" placeholder="ghp_xxxxxxxxxxxx" class="input-field">
+      <span style="font-size:10px;color:#6e7681;">Token disimpen di localStorage device ini aja. Gak dikirim ke server manapun.</span>
+      <button class="btn-primary full" onclick="setGistToken(document.getElementById('gist-token-input').value);document.getElementById('settings-modal').style.display='none';showToast('☁️ Cloud sync enabled!');saveState();">Save & Sync</button>
+      <button class="btn-ghost full" onclick="document.getElementById('settings-modal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+
+  <script src="tokens.js?v=4"></script>
+  <script src="app.js?v=4"></script>
+  <script src="chart.js?v=4"></script>
 </body>
 </html>
