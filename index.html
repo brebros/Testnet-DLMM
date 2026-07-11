@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DLMM Testnet Simulator</title>
+  <title>DLMM Testnet Simulator v2</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚗️</text></svg>">
 </head>
@@ -12,7 +12,7 @@
   <nav class="navbar">
     <div class="nav-left">
       <span class="logo">⚗️ DLMM Testnet</span>
-      <span class="badge">Devnet</span>
+      <span class="badge">v2 — Meridian Edition</span>
     </div>
     <div class="nav-right">
       <div class="wallet-info" id="wallet-info">
@@ -73,18 +73,39 @@
           <div class="empty-state">Belum ada posisi</div>
         </div>
       </div>
+
+      <!-- Decision Log -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">📋 Decision Log</div>
+        <div class="decision-log" id="decision-log">
+          <div class="empty-state">Belum ada aktivitas</div>
+        </div>
+      </div>
     </aside>
 
     <!-- CENTER PANEL -->
     <section class="center-panel">
-      <!-- PAIR SELECTOR -->
+      <!-- VIEW TABS + PAIR HEADER -->
       <div class="pair-header">
         <div class="pair-tabs">
+          <button class="pair-tab view-tab active" onclick="switchView('pairs')">📊 Pairs</button>
+          <button class="pair-tab view-tab" onclick="switchView('analytics')">📈 Analytics</button>
+        </div>
+        <div class="pair-tabs" id="filter-tabs">
           <button class="pair-tab active" onclick="filterPairs('all')">All</button>
           <button class="pair-tab" onclick="filterPairs('volatile')">Volatile</button>
           <button class="pair-tab" onclick="filterPairs('stable')">Stable</button>
         </div>
         <input type="text" class="search-input" id="search-input" placeholder="Search pair..." oninput="searchPairs(this.value)">
+      </div>
+
+      <!-- Sort Bar -->
+      <div class="sort-bar">
+        <span class="sort-label">Sort by:</span>
+        <button class="sort-btn" onclick="sortPairsBy('name')">Name</button>
+        <button class="sort-btn" onclick="sortPairsBy('price')">Price</button>
+        <button class="sort-btn" onclick="sortPairsBy('change')">Change</button>
+        <button class="sort-btn active" onclick="sortPairsBy('score')">Score</button>
       </div>
 
       <div class="pair-grid" id="pair-grid">
