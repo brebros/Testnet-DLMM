@@ -100,6 +100,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 .badge-warn { font-size: 10px; background: rgba(245,158,11,0.15); color: var(--yellow); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
 .badge-danger { font-size: 10px; background: rgba(248,113,113,0.15); color: var(--red); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
 .badge-info { font-size: 10px; background: rgba(34,211,238,0.1); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.badge-claim { font-size: 10px; background: rgba(74,222,128,0.15); color: var(--green); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
 
 /* ── Decision Log ── */
 .decision-log { display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; }
@@ -165,6 +166,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 .dlmm-section { margin-bottom: 16px; }
 .section-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
 .strat-hint { font-size: 11px; color: var(--text3); margin-top: 6px; line-height: 1.4; }
+.strat-best-for { font-size: 10px; color: var(--accent); margin-top: 3px; font-style: italic; }
+.bin-hint { font-size: 10px; color: var(--text3); font-weight: normal; }
 
 /* ── Range Slider ── */
 .range-slider { width: 100%; height: 6px; -webkit-appearance: none; appearance: none; background: var(--bg3); border-radius: 3px; outline: none; }
@@ -238,6 +241,17 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 .reason-icon { font-size: 14px; }
 .reason-name { flex: 1; font-size: 13px; text-transform: capitalize; }
 .reason-count { font-size: 13px; font-weight: 700; color: var(--accent); }
+
+/* Darwin Lessons */
+.lessons-section { margin-bottom: 20px; }
+.lessons-grid { display: flex; flex-direction: column; gap: 6px; }
+.lesson-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; background: var(--bg3); border-radius: 8px; font-size: 12px; line-height: 1.4; }
+.lesson-good { border-left: 3px solid var(--green); }
+.lesson-poor { border-left: 3px solid var(--yellow); }
+.lesson-bad { border-left: 3px solid var(--red); }
+.lesson-neutral { border-left: 3px solid var(--text3); }
+.lesson-outcome { flex-shrink: 0; }
+.lesson-text { color: var(--text2); }
 
 /* Rules Config */
 .rules-section { margin-bottom: 20px; }
