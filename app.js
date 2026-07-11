@@ -1324,23 +1324,34 @@ setInterval(fetchPrices, 30000);
 
 // Try to restore state from localStorage or cloud
 (async () => {
+  const debugLines = [];
+  const statusEl = document.getElementById('persist-status');
+  const debugEl = document.getElementById('sync-debug');
+
   // Auto-setup Gist token from URL parameter
   const urlParams = new URLSearchParams(window.location.search);
   const gistParam = urlParams.get('gist');
   if (gistParam) {
     setGistToken(gistParam);
-    // Remove token from URL without reload
     window.history.replaceState({}, '', window.location.pathname);
-    console.log('[cloud] Token auto-configured from URL');
+    debugLines.push('✅ Token set from URL');
   }
 
+  const token = getGistToken();
+  const gistId = getGistId();
+  debugLines.push('Token: ' + (token ? token.slice(0,6) + '...' + token.slice(-4) : 'NONE'));
+  debugLines.push('Gist ID: ' + (gistId || 'NONE'));
+
   const source = await loadState();
-  const statusEl = document.getElementById('persist-status');
+  debugLines.push('Source: ' + (source || 'NONE'));
+
   if (source === 'cloud') {
-    if (statusEl) { statusEl.textContent = '☁️ Cloud synced'; statusEl.style.color = '#4ade80'; }
+    if (statusEl) { statusEl.textContent = '☁️ Cloud'; statusEl.style.color = '#4ade80'; }
   } else if (source === 'local') {
-    if (statusEl) { statusEl.textContent = '💾 Local restored'; statusEl.style.color = '#f59e0b'; }
+    if (statusEl) { statusEl.textContent = '💾 Local'; statusEl.style.color = '#f59e0b'; }
   } else {
     if (statusEl) { statusEl.textContent = '🆕 Fresh'; statusEl.style.color = '#8b949e'; }
   }
+
+  if (debugEl) debugEl.innerHTML = debugLines.map(l => '<div style="font-size:10px;color:#8b949e;">' + l + '</div>').join('');
 })();
