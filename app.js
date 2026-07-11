@@ -238,9 +238,9 @@ function renderDecisionLog() {
 function recordPerformance(pos, closeReason) {
   const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
-  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
-  const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
+  const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
+  const priceRatio = currentPrice / pos.entryPrice;
+  const lpVal = entryVal * 2 * Math.sqrt(priceRatio) / (1 + priceRatio);
   const pnlPct = holdVal > 0 ? ((pos.feeCollected + (lpVal - holdVal)) / holdVal * 100) : 0;
   const rangeEfficiency = pos.totalRangeMin > 0 ? (pos.inRangeSeconds / ((Date.now() - pos.openedAt) / 1000) * 100) : 50;
 
@@ -302,9 +302,9 @@ function getDeterministicCloseRule(pos) {
 
   // PnL calculation
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
-  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
-  const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
+  const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
+  const priceRatio = currentPrice / pos.entryPrice;
+  const lpVal = entryVal * 2 * Math.sqrt(priceRatio) / (1 + priceRatio);
   const il = lpVal - holdVal;
   const pnlPct = holdVal > 0 ? ((pos.feeCollected + il) / holdVal * 100) : 0;
 
@@ -333,9 +333,9 @@ function getDeterministicCloseRule(pos) {
 function updatePnlAndCheckExits(pos) {
   const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
-  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
-  const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
+  const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
+  const priceRatio = currentPrice / pos.entryPrice;
+  const lpVal = entryVal * 2 * Math.sqrt(priceRatio) / (1 + priceRatio);
   const pnlPct = holdVal > 0 ? ((pos.feeCollected + (lpVal - holdVal)) / holdVal * 100) : 0;
 
   // Peak confirmation (Meridian: require confirmTicks consecutive confirms)
@@ -448,9 +448,9 @@ function autoClosePosition(id, reason) {
 
   const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
-  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
-  const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
+  const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
+  const priceRatio = currentPrice / pos.entryPrice;
+  const lpVal = entryVal * 2 * Math.sqrt(priceRatio) / (1 + priceRatio);
 
   STATE.closedPositions.push({
     ...pos,
@@ -965,9 +965,9 @@ function renderPositionList() {
     const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
     const inRange = currentPrice >= pos.rangeMin && currentPrice <= pos.rangeMax;
     const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-    const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
-    const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
-    const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
+    const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
+    const priceRatio = currentPrice / pos.entryPrice;
+    const lpVal = entryVal * 2 * Math.sqrt(priceRatio) / (1 + priceRatio);
     const il = lpVal - holdVal;
     const netPnl = pos.feeCollected + il;
     const feePct = pos.totalUSD > 0 ? (pos.feeCollected / pos.totalUSD * 100) : 0;
@@ -1000,9 +1000,9 @@ function removePosition(id) {
   if (!pos) return;
   const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
-  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
-  const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
+  const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
+  const priceRatio = currentPrice / pos.entryPrice;
+  const lpVal = entryVal * 2 * Math.sqrt(priceRatio) / (1 + priceRatio);
   const finalPnl = pos.feeCollected + (lpVal - holdVal);
 
   recordPerformance(pos, 'manual');
