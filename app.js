@@ -516,6 +516,8 @@ function renderDLMMPanel() {
       <div class="dlmm-score-badge">Score: ${score}/100</div>
     </div>
 
+    ${getChartHTML(pair.id)}
+
     <!-- Fee Tier -->
     <div class="dlmm-section">
       <div class="section-label">Fee Tier</div>
@@ -603,6 +605,8 @@ function renderDLMMPanel() {
 
   updateRangeInfo();
   renderBinPreview();
+  // Render TradingView chart
+  setTimeout(() => renderChart('chart-container', pair.id, currentTimeframe), 100);
 }
 
 function stratHint(s) {
