@@ -237,10 +237,9 @@ function renderDecisionLog() {
 
 function recordPerformance(pos, closeReason) {
   const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
-  const k = (pos.baseAmt / 2) * (pos.quoteAmt / 2);
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(k * currentPrice);
-  const lpQuote = Math.sqrt(k / currentPrice);
+  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
+  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
   const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
   const pnlPct = holdVal > 0 ? ((pos.feeCollected + (lpVal - holdVal)) / holdVal * 100) : 0;
   const rangeEfficiency = pos.totalRangeMin > 0 ? (pos.inRangeSeconds / ((Date.now() - pos.openedAt) / 1000) * 100) : 50;
@@ -302,10 +301,9 @@ function getDeterministicCloseRule(pos) {
   const ageMinutes = (Date.now() - pos.openedAt) / 60000;
 
   // PnL calculation
-  const k = (pos.baseAmt / 2) * (pos.quoteAmt / 2);
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(k * currentPrice);
-  const lpQuote = Math.sqrt(k / currentPrice);
+  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
+  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
   const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
   const il = lpVal - holdVal;
   const pnlPct = holdVal > 0 ? ((pos.feeCollected + il) / holdVal * 100) : 0;
@@ -334,22 +332,22 @@ function getDeterministicCloseRule(pos) {
 // Layer B: State Machine — Trailing TP with peak confirmation
 function updatePnlAndCheckExits(pos) {
   const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
-  const k = (pos.baseAmt / 2) * (pos.quoteAmt / 2);
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(k * currentPrice);
-  const lpQuote = Math.sqrt(k / currentPrice);
+  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
+  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
   const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
   const pnlPct = holdVal > 0 ? ((pos.feeCollected + (lpVal - holdVal)) / holdVal * 100) : 0;
 
   // Peak confirmation (Meridian: require confirmTicks consecutive confirms)
-  if (pnlPct > (pos.pendingPeakPnlPct || 0)) {
+  // Only track peaks when pnlPct is positive and meaningful
+  if (pnlPct > 0 && pnlPct > (pos.pendingPeakPnlPct || 0)) {
     pos.pendingPeakPnlPct = pnlPct;
     pos.pendingPeakConfirmCount = 1;
-  } else if (pnlPct >= (pos.pendingPeakPnlPct || 0) * 0.99) {
+  } else if (pnlPct > 0 && pnlPct >= (pos.pendingPeakPnlPct || 0) * 0.99) {
     pos.pendingPeakConfirmCount = (pos.pendingPeakConfirmCount || 0) + 1;
-    if (pos.pendingPeakConfirmCount >= RULES.confirmTicks) {
+    if (pos.pendingPeakConfirmCount >= RULES.confirmTicks && pos.pendingPeakPnlPct >= RULES.trailingTriggerPct) {
       pos.peakPnlPct = pos.pendingPeakPnlPct;
-      pos.trailingActive = pos.peakPnlPct >= RULES.trailingTriggerPct;
+      pos.trailingActive = true;
     }
   }
 
@@ -449,10 +447,9 @@ function autoClosePosition(id, reason) {
   recordPerformance(pos, reason);
 
   const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
-  const k = (pos.baseAmt / 2) * (pos.quoteAmt / 2);
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(k * currentPrice);
-  const lpQuote = Math.sqrt(k / currentPrice);
+  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
+  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
   const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
 
   STATE.closedPositions.push({
@@ -967,10 +964,9 @@ function renderPositionList() {
   el.innerHTML = STATE.positions.map(pos => {
     const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
     const inRange = currentPrice >= pos.rangeMin && currentPrice <= pos.rangeMax;
-    const k = (pos.baseAmt / 2) * (pos.quoteAmt / 2);
     const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-    const lpBase = Math.sqrt(k * currentPrice);
-    const lpQuote = Math.sqrt(k / currentPrice);
+    const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
+    const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
     const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
     const il = lpVal - holdVal;
     const netPnl = pos.feeCollected + il;
@@ -1003,10 +999,9 @@ function removePosition(id) {
   const pos = STATE.positions.find(p => p.id === id);
   if (!pos) return;
   const currentPrice = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
-  const k = (pos.baseAmt / 2) * (pos.quoteAmt / 2);
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
-  const lpBase = Math.sqrt(k * currentPrice);
-  const lpQuote = Math.sqrt(k / currentPrice);
+  const lpBase = Math.sqrt(pos.baseAmt * pos.quoteAmt * pos.entryPrice / currentPrice);
+  const lpQuote = Math.sqrt(pos.baseAmt * pos.quoteAmt * currentPrice / pos.entryPrice);
   const lpVal = lpBase * getPrice(pos.pair.base) + lpQuote * getPrice(pos.pair.quote);
   const finalPnl = pos.feeCollected + (lpVal - holdVal);
 
