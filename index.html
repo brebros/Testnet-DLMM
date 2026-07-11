@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DLMM Testnet Simulator</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚗️</text></svg>">
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <span class="logo">⚗️ DLMM Testnet</span>
+      <span class="badge">Devnet</span>
+    </div>
+    <div class="nav-right">
+      <div class="wallet-info" id="wallet-info">
+        <span class="wallet-addr" id="wallet-addr">Not connected</span>
+        <button class="btn-connect" id="connect-btn">Connect Wallet</button>
+      </div>
+      <div class="price-ticker" id="sol-ticker">SOL $—</div>
+    </div>
+  </nav>
+
+  <!-- WALLET MODAL -->
+  <div class="modal-overlay" id="wallet-modal" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">🔌 Connect Testnet Wallet</div>
+      <p class="modal-desc">Generate a virtual wallet untuk simulasi. Semua token adalah faucet — bukan duit asli.</p>
+      <button class="btn-primary full" id="gen-wallet-btn">Generate New Wallet</button>
+      <div class="divider">or</div>
+      <input type="text" id="custom-addr" placeholder="Paste custom address (optional)" class="input-field">
+      <button class="btn-secondary full" id="use-custom-btn">Use This Address</button>
+      <button class="btn-ghost full" id="close-modal-btn">Cancel</button>
+    </div>
+  </div>
+
+  <!-- FAUCET MODAL -->
+  <div class="modal-overlay" id="faucet-modal" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">🚰 Testnet Faucet</div>
+      <p class="modal-desc">Claim token virtual buat simulasi. Bisa claim ulang tiap 24 jam.</p>
+      <div class="faucet-grid" id="faucet-grid"></div>
+      <button class="btn-primary full" id="claim-all-btn">Claim All Tokens</button>
+      <button class="btn-ghost full" id="close-faucet-btn">Close</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Portfolio</div>
+        <div class="balance-card" id="balance-card">
+          <div class="balance-usd" id="total-usd">$0.00</div>
+          <div class="balance-label">Total Value (virtual)</div>
+        </div>
+        <button class="btn-faucet" id="faucet-btn" disabled>🚰 Faucet</button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Token Balances</div>
+        <div class="token-list" id="token-list">
+          <div class="empty-state">Connect wallet dulu</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Active Positions</div>
+        <div class="position-list" id="position-list">
+          <div class="empty-state">Belum ada posisi</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER PANEL -->
+    <section class="center-panel">
+      <!-- PAIR SELECTOR -->
+      <div class="pair-header">
+        <div class="pair-tabs">
+          <button class="pair-tab active" onclick="filterPairs('all')">All</button>
+          <button class="pair-tab" onclick="filterPairs('volatile')">Volatile</button>
+          <button class="pair-tab" onclick="filterPairs('stable')">Stable</button>
+        </div>
+        <input type="text" class="search-input" id="search-input" placeholder="Search pair..." oninput="searchPairs(this.value)">
+      </div>
+
+      <div class="pair-grid" id="pair-grid">
+        <div class="loading-state">Loading prices... 🔄</div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: DLMM INTERFACE -->
+    <section class="right-panel" id="right-panel">
+      <div class="empty-right">
+        <div class="empty-icon">📊</div>
+        <div>Select a pair to start</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="tokens.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
