@@ -569,7 +569,10 @@ function computePairMetrics(pair) {
 
   // Estimate metrics from available data
   const rate = basePrice / quotePrice;
-  const volatility = Math.min(change / 2, 10); // Normalize to 0-10 scale
+  // Volatility scale: amplify change24h for better strategy differentiation
+  // Meridian uses per-pool API volatility; we approximate from CoinGecko 24h change
+  // Scale: 1% change = 1.5 vol, 5% = 7.5, 10% = 15 (capped at 20)
+  const volatility = Math.min(change * 1.5, 20);
   const feeTvlRatio = pair.type === 'volatile' ? 0.15 : 0.05; // Estimate
   const maxFee = Math.max(...pair.feeTiers);
 
@@ -866,10 +869,15 @@ function renderDLMMPanel() {
   dlmmState.binStep = pair.binSteps[0];
   // Meridian volatility-based bin range
   const binsBelow = computeBinsBelow(metrics.volatility, MIN_SAFE_BINS_BELOW, 69);
-  const rangePct = binsBelow / 69 * 0.15; // Scale to price range
-  dlmmState.rangeMin = parseFloat((rate * (1 - rangePct)).toFixed(6));
-  dlmmState.rangeMax = parseFloat((rate * (1 + rangePct)).toFixed(6));
+  const rangePct = binsBelow / 69 * 0.15;
+  dlmmState.rangeMin = parseFloat((rate * (1 - rangePct)).toFixed(8));
+  dlmmState.rangeMax = parseFloat((rate * (1 + rangePct)).toFixed(8));
   dlmmState.numBins = binsBelow * 2;
+
+  // Auto-select strategy based on volatility (recalibrated for CoinGecko data)
+  // Vol scale: 1% change = 1.5 vol, 5% = 7.5, 10% = 15
+  const autoStrategy = metrics.volatility >= 10 ? 'aggressive' : metrics.volatility >= 5 ? 'bid_ask' : metrics.volatility >= 2 ? 'curve' : 'spot';
+  dlmmState.strategy = autoStrategy;
 
   const panel = document.getElementById('right-panel');
   panel.innerHTML = `
