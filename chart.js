@@ -1,151 +1,251 @@
 // ═══════════════════════════════════════════
-// chart.js — TradingView Lightweight Charts
-// Binance OHLCV → Candlestick + Volume
+// chart.js — Candlestick chart module
+// Data: Binance public API (no key needed)
+// Render: TradingView Lightweight Charts
 // ═══════════════════════════════════════════
 
 let chartInstance = null;
 let candleSeries = null;
 let volumeSeries = null;
-let currentChartSymbol = null;
-let currentTimeframe = '1h';
+let chartPair = null;
+let autoRefreshInterval = null;
 
-// Binance klines fetch
-async function fetchBinanceKlines(symbol, interval = '1h', limit = 200) {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+// Map pair ID → Binance symbol
+const BINANCE_SYMBOLS = {
+  'SOL-USDC':   'SOLUSDC',
+  'BONK-USDC':  'BONKUSDC',
+  'WIF-USDC':   'WIFUSDC',
+  'JUP-USDC':   'JUPUSDC',
+  'PYTH-USDC':  'PYTHUSDC',
+  'RAY-USDC':   'RAYUSDC',
+  'ORCA-USDC':  'ORCAUSDC',
+  'JTO-USDC':   'JTOUSDC',
+  'POPCAT-USDC':'POPCATUSDC',
+  'BOME-USDC':  'BOMEUSDC',
+  'MEW-USDC':   'MEWUSDC',
+  'SLERF-USDC': 'SLERFUSDC',
+  'SAMO-USDC':  'SAMOUSDC',
+  'RENDER-USDC':'RENDERUSDC',
+  'HNT-USDC':   'HNTUSDC',
+  'MOBILE-USDC':'MOBILEUSDC',
+  'IOT-USDC':   'IOTUSDC',
+  'GMT-USDC':   'GMTUSDC',
+  'DRIFT-USDC': 'DRIFTUSDC',
+  'ZEUS-USDC':  'ZEUSUSDC',
+  'W-USDC':     'WUSDC',
+  'TNSR-USDC':  'TNSRUSDC',
+  'PONKE-USDC': 'PONKEUSDC',
+  'MSOL-SOL':   null, // not on Binance, skip
+  'JSOL-SOL':   null,
+  'BSOL-SOL':   null,
+  'BONK-SOL':   'BONKSOL',
+  'WIF-SOL':    'WIFSOL',
+  'JUP-SOL':    'JUPSOL',
+  'RAY-SOL':    'RAYSOL',
+  'MNGO-USDC':  'MNGOUSDC',
+  'KMNO-USDC':  null,
+  // Stable pairs — use fallback flat line
+  'USDC-USDT':  null,
+  'USDC-DAI':   null,
+  'USDC-PYUSD': null,
+  'USDC-FRAX':  null,
+  'USDC-USDS':  null,
+  'USDT-DAI':   null,
+  'USDT-FRAX':  null,
+  'USDT-USDS':  null,
+  'DAI-FRAX':   null,
+  'TUSD-USDC':  null,
+};
+
+const INTERVALS = [
+  { label: '1m',  value: '1m'  },
+  { label: '5m',  value: '5m'  },
+  { label: '15m', value: '15m' },
+  { label: '1h',  value: '1h'  },
+  { label: '4h',  value: '4h'  },
+  { label: '1d',  value: '1d'  },
+];
+
+let currentInterval = '15m';
+
+// ── Fetch OHLCV dari Binance ──
+async function fetchCandles(symbol, interval, limit = 200) {
   try {
+    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Binance ${res.status}`);
-    const data = await res.json();
-    return data.map(k => ({
-      time: Math.floor(k[0] / 1000),          // open time → unix seconds
-      open: parseFloat(k[1]),
-      high: parseFloat(k[2]),
-      low: parseFloat(k[3]),
+    if (!res.ok) throw new Error('Binance fetch failed');
+    const raw = await res.json();
+    return raw.map(k => ({
+      time: Math.floor(k[0] / 1000),
+      open:  parseFloat(k[1]),
+      high:  parseFloat(k[2]),
+      low:   parseFloat(k[3]),
       close: parseFloat(k[4]),
-      value: parseFloat(k[5]),                  // volume for histogram
+      volume: parseFloat(k[5]),
     }));
   } catch (e) {
-    console.warn('Binance fetch failed:', e);
+    console.warn('Binance candle fetch failed:', e);
     return null;
   }
 }
 
-// Render chart ke container
-function renderChart(containerId, pairId, timeframe) {
+// ── Stable pair fallback: generate flat candles ──
+function generateStableCandles() {
+  const candles = [];
+  const now = Math.floor(Date.now() / 1000);
+  for (let i = 199; i >= 0; i--) {
+    const base = 1 + (Math.random() - 0.5) * 0.002;
+    candles.push({
+      time: now - i * 900,
+      open:  parseFloat((base + (Math.random()-0.5)*0.001).toFixed(5)),
+      high:  parseFloat((base + Math.random()*0.001).toFixed(5)),
+      low:   parseFloat((base - Math.random()*0.001).toFixed(5)),
+      close: parseFloat((base + (Math.random()-0.5)*0.001).toFixed(5)),
+      volume: Math.random() * 1000000,
+    });
+  }
+  return candles;
+}
+
+// ── Init chart dalam container ──
+function initChart(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  const binanceSymbol = BINANCE_SYMBOLS[pairId];
-  if (!binanceSymbol) {
-    container.innerHTML = '<div class="chart-unavailable">📉 Chart tidak tersedia untuk pair ini (belum ada di Binance)</div>';
-    return;
-  }
-
-  // Cleanup existing chart
+  // Destroy existing
   if (chartInstance) {
     chartInstance.remove();
     chartInstance = null;
+    candleSeries = null;
+    volumeSeries = null;
   }
 
-  container.innerHTML = '<div class="chart-loading">Loading chart... 🔄</div>';
-
-  currentTimeframe = timeframe || '1h';
-  currentChartSymbol = binanceSymbol;
-
-  fetchBinanceKlines(binanceSymbol, currentTimeframe).then(klines => {
-    if (!klines || !klines.length) {
-      container.innerHTML = '<div class="chart-unavailable">📉 Data tidak tersedia</div>';
-      return;
-    }
-
-    container.innerHTML = '';
-
-    // Create chart
-    chartInstance = LightweightCharts.createChart(container, {
-      width: container.clientWidth,
-      height: 280,
-      layout: {
-        background: { type: 'solid', color: '#0d1117' },
-        textColor: '#8b949e',
-      },
-      grid: {
-        vertLines: { color: '#21262d' },
-        horzLines: { color: '#21262d' },
-      },
-      crosshair: {
-        mode: LightweightCharts.CrosshairMode.Normal,
-        vertLine: { color: '#22d3ee66', width: 1, style: 2 },
-        horzLine: { color: '#22d3ee66', width: 1, style: 2 },
-      },
-      rightPriceScale: {
-        borderColor: '#30363d',
-      },
-      timeScale: {
-        borderColor: '#30363d',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-    });
-
-    // Candlestick series
-    candleSeries = chartInstance.addCandlestickSeries({
-      upColor: '#4ade80',
-      downColor: '#f87171',
-      borderDownColor: '#f87171',
-      borderUpColor: '#4ade80',
-      wickDownColor: '#f87171',
-      wickUpColor: '#4ade80',
-    });
-    candleSeries.setData(klines);
-
-    // Volume histogram
-    volumeSeries = chartInstance.addHistogramSeries({
-      priceFormat: { type: 'volume' },
-      priceScaleId: 'volume',
-    });
-    chartInstance.priceScale('volume').applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
-    });
-    volumeSeries.setData(klines.map(k => ({
-      time: k.time,
-      value: k.value,
-      color: k.close >= k.open ? '#4ade8033' : '#f8717133',
-    })));
-
-    chartInstance.timeScale().fitContent();
-
-    // Auto-resize
-    const resizeObserver = new ResizeObserver(entries => {
-      if (entries[0] && chartInstance) {
-        chartInstance.applyOptions({ width: entries[0].contentRect.width });
-      }
-    });
-    resizeObserver.observe(container);
+  chartInstance = LightweightCharts.createChart(container, {
+    width: container.clientWidth,
+    height: container.clientHeight || 280,
+    layout: {
+      background: { color: '#161b22' },
+      textColor: '#8b949e',
+    },
+    grid: {
+      vertLines: { color: '#21262d' },
+      horzLines: { color: '#21262d' },
+    },
+    crosshair: {
+      mode: LightweightCharts.CrosshairMode.Normal,
+    },
+    rightPriceScale: {
+      borderColor: '#30363d',
+    },
+    timeScale: {
+      borderColor: '#30363d',
+      timeVisible: true,
+      secondsVisible: false,
+    },
   });
+
+  candleSeries = chartInstance.addCandlestickSeries({
+    upColor:        '#4ade80',
+    downColor:      '#f87171',
+    borderUpColor:  '#4ade80',
+    borderDownColor:'#f87171',
+    wickUpColor:    '#4ade80',
+    wickDownColor:  '#f87171',
+  });
+
+  volumeSeries = chartInstance.addHistogramSeries({
+    color: '#22d3ee',
+    priceFormat: { type: 'volume' },
+    priceScaleId: 'volume',
+    scaleMargins: { top: 0.85, bottom: 0 },
+  });
+
+  // Resize observer
+  const ro = new ResizeObserver(() => {
+    if (chartInstance && container) {
+      chartInstance.applyOptions({ width: container.clientWidth });
+    }
+  });
+  ro.observe(container);
 }
 
-// Timeframe buttons handler
-function setTimeframe(tf, pairId) {
-  currentTimeframe = tf;
-  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  renderChart('chart-container', pairId, tf);
+// ── Load candle data ke chart ──
+async function loadChartData(pairId, interval) {
+  const symbol = BINANCE_SYMBOLS[pairId];
+  let candles;
+
+  if (!symbol) {
+    // Stable pair atau ga ada di Binance
+    candles = generateStableCandles();
+  } else {
+    candles = await fetchCandles(symbol, interval);
+    if (!candles) candles = generateStableCandles();
+  }
+
+  if (!candleSeries || !volumeSeries) return;
+
+  candleSeries.setData(candles);
+  volumeSeries.setData(candles.map(c => ({
+    time: c.time,
+    value: c.volume,
+    color: c.close >= c.open ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)',
+  })));
+
+  chartInstance.timeScale().fitContent();
 }
 
-// Inject chart + timeframe buttons ke DLMM panel
-function getChartHTML(pairId) {
-  return `
-    <div class="dlmm-section">
-      <div class="section-label">Price Chart</div>
-      <div class="tf-btns">
-        <button class="tf-btn ${currentTimeframe === '1m' ? 'active' : ''}" onclick="setTimeframe('1m','${pairId}')">1m</button>
-        <button class="tf-btn ${currentTimeframe === '5m' ? 'active' : ''}" onclick="setTimeframe('5m','${pairId}')">5m</button>
-        <button class="tf-btn ${currentTimeframe === '15m' ? 'active' : ''}" onclick="setTimeframe('15m','${pairId}')">15m</button>
-        <button class="tf-btn ${currentTimeframe === '1h' ? 'active' : ''}" onclick="setTimeframe('1h','${pairId}')">1H</button>
-        <button class="tf-btn ${currentTimeframe === '4h' ? 'active' : ''}" onclick="setTimeframe('4h','${pairId}')">4H</button>
-        <button class="tf-btn ${currentTimeframe === '1d' ? 'active' : ''}" onclick="setTimeframe('1d','${pairId}')">1D</button>
+// ── Render chart section dalam DLMM panel ──
+function renderChartSection(pairId) {
+  chartPair = pairId;
+  if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+
+  const html = `
+    <div class="chart-section">
+      <div class="chart-toolbar">
+        <div class="chart-pair-label" id="chart-pair-label">${pairId.replace('-','/')}</div>
+        <div class="interval-btns" id="interval-btns">
+          ${INTERVALS.map(iv => `
+            <button class="iv-btn ${iv.value === currentInterval ? 'sel' : ''}"
+              onclick="changeInterval('${iv.value}')">${iv.label}</button>
+          `).join('')}
+        </div>
+        <div class="chart-status" id="chart-status">Loading...</div>
       </div>
-      <div id="chart-container" class="chart-container"></div>
+      <div id="candle-container" class="candle-container"></div>
     </div>
   `;
+
+  return html;
+}
+
+async function mountChart(pairId) {
+  // Tunggu DOM ready
+  await new Promise(r => setTimeout(r, 50));
+  initChart('candle-container');
+  await loadChartData(pairId, currentInterval);
+  document.getElementById('chart-status').textContent = BINANCE_SYMBOLS[pairId] ? 'Live · Binance' : 'Simulated · Stable';
+
+  // Auto refresh tiap 30 detik
+  if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+  autoRefreshInterval = setInterval(async () => {
+    if (!chartPair) return;
+    const symbol = BINANCE_SYMBOLS[chartPair];
+    if (!symbol) return;
+    const candles = await fetchCandles(symbol, currentInterval, 5);
+    if (candles && candleSeries) {
+      candles.forEach(c => {
+        candleSeries.update(c);
+        volumeSeries.update({ time: c.time, value: c.volume, color: c.close >= c.open ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)' });
+      });
+    }
+  }, 30000);
+}
+
+async function changeInterval(iv) {
+  currentInterval = iv;
+  document.querySelectorAll('.iv-btn').forEach(b => b.classList.remove('sel'));
+  event.target.classList.add('sel');
+  document.getElementById('chart-status').textContent = 'Loading...';
+  await loadChartData(chartPair, iv);
+  document.getElementById('chart-status').textContent = BINANCE_SYMBOLS[chartPair] ? 'Live · Binance' : 'Simulated · Stable';
 }
