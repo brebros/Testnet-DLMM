@@ -31,11 +31,12 @@ const STATE = {
 const STORAGE_KEY = 'dlmm_testnet_state';
 const GIST_TOKEN_KEY = 'dlmm_gist_token';
 const GIST_ID_KEY = 'dlmm_gist_id';
+const PUBLIC_GIST_ID = '66ef2a095c65a34939750a4cdff8c29e';
 
 // ── Cloud Sync (GitHub Gist) ──
 function getGistToken() { return localStorage.getItem(GIST_TOKEN_KEY) || ''; }
 function setGistToken(t) { localStorage.setItem(GIST_TOKEN_KEY, t); }
-function getGistId() { return localStorage.getItem(GIST_ID_KEY) || '6910f410e7bdf730f55f65746d1bd203'; }
+function getGistId() { return localStorage.getItem(GIST_ID_KEY) || PUBLIC_GIST_ID; }
 function setGistId(id) { localStorage.setItem(GIST_ID_KEY, id); }
 
 function getStateJSON() {
@@ -105,18 +106,14 @@ async function syncToCloud() {
 }
 
 async function loadFromCloud() {
-  const token = getGistToken();
   const gistId = getGistId();
-  if (!token || !gistId) return false;
+  if (!gistId) return false;
   try {
-    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-      headers: { 'Authorization': `token ${token}` },
-    });
+    // Public Gist — no auth needed, use raw URL to avoid CORS
+    const res = await fetch(`https://gist.githubusercontent.com/brebros/${gistId}/raw/dlmm-state.json`);
     if (!res.ok) return false;
-    const data = await res.json();
-    const content = data.files?.['dlmm-state.json']?.content;
-    if (!content) return false;
-    const saved = JSON.parse(content);
+    const text = await res.text();
+    const saved = JSON.parse(text);
     if (!saved || !saved.wallet) return false;
     return saved;
   } catch (e) {
