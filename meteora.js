@@ -18,19 +18,27 @@ async function fetchMeteoraPools(baseSymbol, quoteSymbol) {
   }
 
   try {
-    // Fetch all pools (paginated) and find matching pair
+    // Fetch pools sorted by volume — popular pairs bubble up
     const url = `${METEORA_API}/pools?page_size=200&sort_by=volume_24h&sort_order=desc`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const pools = data.data || [];
 
-    // Find pool matching our pair
+    const baseUpper = baseSymbol.toUpperCase();
+    const quoteUpper = quoteSymbol.toUpperCase();
+    const pairName = `${baseUpper}-${quoteUpper}`;
+    const pairNameRev = `${quoteUpper}-${baseUpper}`;
+
+    // Find pool matching our pair — by name first, then by symbol
     const match = pools.find(p => {
+      // Match by pool name (e.g., "SOL-USDC")
+      if (p.name === pairName || p.name === pairNameRev) return true;
+      // Match by token symbols
       const xSym = (p.token_x?.symbol || '').toUpperCase();
       const ySym = (p.token_y?.symbol || '').toUpperCase();
-      return (xSym === baseSymbol.toUpperCase() && ySym === quoteSymbol.toUpperCase()) ||
-             (xSym === quoteSymbol.toUpperCase() && ySym === baseSymbol.toUpperCase());
+      return (xSym === baseUpper && ySym === quoteUpper) ||
+             (xSym === quoteUpper && ySym === baseUpper);
     });
 
     if (!match) return null;

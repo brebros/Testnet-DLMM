@@ -729,7 +729,7 @@ function renderAnalytics() {
       <div class="stat-card"><div class="stat-label">Positions</div><div class="stat-value">${STATE.positions.length}</div></div>
     </div>
     <div class="chart-section"><div class="section-label">PnL per Position</div>
-      <div class="pnl-chart">${allClosed.length?allClosed.map(p=>{const max=Math.max(...allClosed.map(x=>Math.abs(x.finalPnl||0)),1);const h=Math.max(Math.abs(p.finalPnl||0)/max*80,4);return`<div class="chart-bar-wrapper"><div class="chart-bar" style="height:${h}px;background:${(p.finalPnl||0)>=0?'#4ade80':'#f87171'}"></div><div class="chart-label">${p.pair.base}</div><div class="chart-val ${(p.finalPnl||0)>=0?'green':'red'}">${(p.finalPnl||0)>=0?'+':''}$${(p.finalPnl||0).toFixed(1)}</div></div>`;}).join(''):'<div class="empty-state">Belum ada posisi ditutup</div>'}</div>
+      <div class="pnl-chart">${allClosed.length?allClosed.map(p=>{const max=Math.max(...allClosed.map(x=>Math.abs(x.finalPnl||0)),1);const h=Math.max(Math.abs(p.finalPnl||0)/max*80,4);return`<div class="chart-bar-wrapper"><div class="chart-bar" style="height:${h}px;background:${(p.finalPnl||0)>=0?'#4ade80':'#f87171'}"></div><div class="chart-label">${p.pair.base.slice(0,8)}</div><div class="chart-val ${(p.finalPnl||0)>=0?'green':'red'}">${(p.finalPnl||0)>=0?'+':''}$${(p.finalPnl||0).toFixed(1)}</div></div>`;}).join(''):'<div class="empty-state">Belum ada posisi ditutup</div>'}</div>
     </div>
     <div class="ranking-section"><div class="section-label">Pair Rankings</div>
       <div class="ranking-grid">

@@ -193,11 +193,11 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 .stat-value.green { color: var(--green); }
 .stat-value.red { color: var(--red); }
 .stat-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
-.pnl-chart { display: flex; align-items: flex-end; gap: 8px; height: 140px; background: var(--bg3); border-radius: 10px; padding: 12px; overflow-x: auto; }
+.pnl-chart { display: flex; align-items: flex-end; gap: 8px; height: 180px; background: var(--bg3); border-radius: 10px; padding: 12px; overflow-x: auto; }
 .chart-bar-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 40px; }
 .chart-bar { width: 24px; border-radius: 3px 3px 0 0; min-height: 2px; }
-.chart-label { font-size: 9px; color: var(--text3); writing-mode: vertical-lr; transform: rotate(180deg); max-height: 50px; overflow: hidden; }
-.chart-val { font-size: 9px; font-weight: 600; white-space: nowrap; }
+.chart-label { font-size: 10px; color: var(--text3); writing-mode: vertical-lr; transform: rotate(180deg); max-height: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chart-val { font-size: 10px; font-weight: 600; white-space: nowrap; }
 .ranking-section { margin-bottom: 20px; }
 .ranking-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .rank-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
