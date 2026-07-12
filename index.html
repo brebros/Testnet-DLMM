@@ -13,7 +13,7 @@
   <nav class="navbar">
     <div class="nav-left">
       <span class="logo">⚗️ DLMM Testnet</span>
-      <span class="badge">Devnet</span>
+      <span class="badge">Meridian Edition</span>
     </div>
     <div class="nav-right">
       <div class="wallet-info" id="wallet-info">
@@ -21,6 +21,9 @@
         <button class="btn-connect" id="connect-btn">Connect Wallet</button>
       </div>
       <div class="price-ticker" id="sol-ticker">SOL $—</div>
+      <span id="persist-status" style="font-size:11px;color:#8b949e;">—</span>
+      <button onclick="document.getElementById('settings-modal').style.display='flex'" style="font-size:10px;padding:2px 6px;border:1px solid #30363d;background:transparent;color:#8b949e;border-radius:4px;cursor:pointer;" title="Cloud Sync Settings">⚙️</button>
+      <button onclick="clearState();location.reload();" style="font-size:10px;padding:2px 6px;border:1px solid #30363d;background:transparent;color:#8b949e;border-radius:4px;cursor:pointer;" title="Clear saved state">🗑️</button>
     </div>
   </nav>
 
@@ -48,6 +51,19 @@
     </div>
   </div>
 
+  <!-- SETTINGS MODAL -->
+  <div class="modal-overlay" id="settings-modal" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">⚙️ Cloud Sync</div>
+      <p class="modal-desc">Sync state antar device via GitHub Gist. Masukkan PAT (scope: <code>gist</code>).</p>
+      <label style="font-size:11px;color:#8b949e;margin-bottom:4px;">GitHub PAT</label>
+      <input type="password" id="gist-token-input" placeholder="ghp_xxxxxxxxxxxx" class="input-field">
+      <span style="font-size:10px;color:#6e7681;">Token disimpen di localStorage device ini aja.</span>
+      <button class="btn-primary full" onclick="setGistToken(document.getElementById('gist-token-input').value);document.getElementById('settings-modal').style.display='none';showToast('☁️ Cloud sync enabled!');saveState();">Save & Sync</button>
+      <button class="btn-ghost full" onclick="document.getElementById('settings-modal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+
   <!-- MAIN CONTENT -->
   <main class="main">
     <!-- SIDEBAR -->
@@ -59,6 +75,7 @@
           <div class="balance-label">Total Value (virtual)</div>
         </div>
         <button class="btn-faucet" id="faucet-btn" disabled>🚰 Faucet</button>
+        <div id="sync-debug" style="margin-top:8px;"></div>
       </div>
 
       <div class="sidebar-section">
@@ -74,18 +91,36 @@
           <div class="empty-state">Belum ada posisi</div>
         </div>
       </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">📋 Decision Log</div>
+        <div class="decision-log" id="decision-log">
+          <div class="empty-state">Belum ada aktivitas</div>
+        </div>
+      </div>
     </aside>
 
     <!-- CENTER PANEL -->
     <section class="center-panel">
-      <!-- PAIR SELECTOR -->
       <div class="pair-header">
         <div class="pair-tabs">
+          <button class="pair-tab view-tab active" onclick="switchView('pairs')">📊 Pairs</button>
+          <button class="pair-tab view-tab" onclick="switchView('analytics')">📈 Analytics</button>
+        </div>
+        <div class="pair-tabs" id="filter-tabs">
           <button class="pair-tab active" onclick="filterPairs('all')">All</button>
           <button class="pair-tab" onclick="filterPairs('volatile')">Volatile</button>
           <button class="pair-tab" onclick="filterPairs('stable')">Stable</button>
         </div>
         <input type="text" class="search-input" id="search-input" placeholder="Search pair..." oninput="searchPairs(this.value)">
+      </div>
+
+      <div class="sort-bar">
+        <span class="sort-label">Sort by:</span>
+        <button class="sort-btn" onclick="sortPairsBy('name')">Name</button>
+        <button class="sort-btn" onclick="sortPairsBy('price')">Price</button>
+        <button class="sort-btn" onclick="sortPairsBy('change')">Change</button>
+        <button class="sort-btn active" onclick="sortPairsBy('score')">Score</button>
       </div>
 
       <div class="pair-grid" id="pair-grid">
