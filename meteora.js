@@ -9,6 +9,47 @@ const METEORA_API = 'https://dlmm.datapi.meteora.ag';
 // Cache pool data biar ga spam API
 const POOL_CACHE = { data: {}, lastFetch: {}, TTL: 5 * 60 * 1000 };
 
+// Symbol normalization — handle Meteora's weird naming
+function normalizeSymbol(sym) {
+  return (sym || '').replace(/^\$/, '').toUpperCase();
+}
+
+// ── Fetch multiple pages in parallel ──
+async function fetchAllPools(pages = 10) {
+  const urls = [];
+  for (let i = 1; i <= pages; i++) {
+    urls.push(`${METEORA_API}/pools?page_size=200&page=${i}`);
+  }
+  const results = await Promise.allSettled(
+    urls.map(url => fetch(url).then(r => r.ok ? r.json() : { data: [] }))
+  );
+  const allPools = [];
+  results.forEach(r => {
+    if (r.status === 'fulfilled' && r.value?.data) {
+      allPools.push(...r.value.data);
+    }
+  });
+  return allPools;
+}
+
+// ── Find matching pool ──
+function findMatchingPool(pools, baseSymbol, quoteSymbol) {
+  const baseNorm = normalizeSymbol(baseSymbol);
+  const quoteNorm = normalizeSymbol(quoteSymbol);
+
+  return pools.find(p => {
+    // Match by pool name (e.g., "SOL-USDC", "$WIF-SOL")
+    const nameNorm = normalizeSymbol(p.name);
+    if (nameNorm === `${baseNorm}-${quoteNorm}` || nameNorm === `${quoteNorm}-${baseNorm}`) return true;
+
+    // Match by token symbols (normalized)
+    const xSym = normalizeSymbol(p.token_x?.symbol);
+    const ySym = normalizeSymbol(p.token_y?.symbol);
+    return (xSym === baseNorm && ySym === quoteNorm) ||
+           (xSym === quoteNorm && ySym === baseNorm);
+  });
+}
+
 // ── Fetch pools by token pair dari Meteora ──
 async function fetchMeteoraPools(baseSymbol, quoteSymbol) {
   const cacheKey = `${baseSymbol}-${quoteSymbol}`;
@@ -18,28 +59,9 @@ async function fetchMeteoraPools(baseSymbol, quoteSymbol) {
   }
 
   try {
-    // Fetch pools sorted by volume — popular pairs bubble up
-    const url = `${METEORA_API}/pools?page_size=200&sort_by=volume_24h&sort_order=desc`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const pools = data.data || [];
-
-    const baseUpper = baseSymbol.toUpperCase();
-    const quoteUpper = quoteSymbol.toUpperCase();
-    const pairName = `${baseUpper}-${quoteUpper}`;
-    const pairNameRev = `${quoteUpper}-${baseUpper}`;
-
-    // Find pool matching our pair — by name first, then by symbol
-    const match = pools.find(p => {
-      // Match by pool name (e.g., "SOL-USDC")
-      if (p.name === pairName || p.name === pairNameRev) return true;
-      // Match by token symbols
-      const xSym = (p.token_x?.symbol || '').toUpperCase();
-      const ySym = (p.token_y?.symbol || '').toUpperCase();
-      return (xSym === baseUpper && ySym === quoteUpper) ||
-             (xSym === quoteUpper && ySym === baseUpper);
-    });
+    // Fetch 10 pages (2000 pools) in parallel
+    const allPools = await fetchAllPools(10);
+    const match = findMatchingPool(allPools, baseSymbol, quoteSymbol);
 
     if (!match) return null;
 
@@ -49,7 +71,7 @@ async function fetchMeteoraPools(baseSymbol, quoteSymbol) {
       tvl:       parseFloat(match.tvl || 0),
       feeTier:   parseFloat(match.pool_config?.base_fee_pct || 0.3),
       binStep:   match.pool_config?.bin_step || 10,
-      apr:       parseFloat(match.apr || 0) * 100, // API returns decimal, we want %
+      apr:       parseFloat(match.apr || 0) * 100,
       fees24h:   parseFloat(match.fees?.['24h'] || 0),
     };
 
@@ -63,7 +85,6 @@ async function fetchMeteoraPools(baseSymbol, quoteSymbol) {
 }
 
 // ── Hitung fee estimate realistis ──
-// Formula: fee_lu = volume_24h × fee_tier% × (modal_lu / TVL_pool)
 function calcRealisticFee(poolData, modalUSD, durationHours = 24) {
   if (!poolData || !poolData.volume24h || !poolData.tvl) return null;
   const { volume24h, tvl, feeTier } = poolData;
