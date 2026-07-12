@@ -78,24 +78,34 @@
         <div id="sync-debug" style="margin-top:8px;"></div>
       </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-title">Token Balances</div>
-        <div class="token-list" id="token-list">
-          <div class="empty-state">Connect wallet dulu</div>
+      <!-- Sidebar Tabs -->
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" onclick="switchSidebarTab('tokens', this)">💰 Tokens</button>
+        <button class="sidebar-tab" onclick="switchSidebarTab('positions', this)">📋 Positions</button>
+        <button class="sidebar-tab" onclick="switchSidebarTab('history', this)">📜 History</button>
+      </div>
+
+      <div class="sidebar-tab-content" id="sidebar-tokens" style="display:none;">
+        <div class="sidebar-section">
+          <div class="token-list" id="token-list">
+            <div class="empty-state">Connect wallet dulu</div>
+          </div>
         </div>
       </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-title">Active Positions</div>
-        <div class="position-list" id="position-list">
-          <div class="empty-state">Belum ada posisi</div>
+      <div class="sidebar-tab-content" id="sidebar-positions">
+        <div class="sidebar-section">
+          <div class="position-list" id="position-list">
+            <div class="empty-state">Belum ada posisi</div>
+          </div>
         </div>
       </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-title">📋 Decision Log</div>
-        <div class="decision-log" id="decision-log">
-          <div class="empty-state">Belum ada aktivitas</div>
+      <div class="sidebar-tab-content" id="sidebar-history" style="display:none;">
+        <div class="sidebar-section">
+          <div class="decision-log" id="decision-log">
+            <div class="empty-state">Belum ada aktivitas</div>
+          </div>
         </div>
       </div>
     </aside>

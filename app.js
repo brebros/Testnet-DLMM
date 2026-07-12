@@ -775,3 +775,11 @@ fetchPrices(); renderDecisionLog(); setInterval(fetchPrices, 30000);
   else if (source === 'local') { if (statusEl) { statusEl.textContent = '💾 Local'; statusEl.style.color = '#f59e0b'; } }
   else { if (statusEl) { statusEl.textContent = '🆕 Fresh'; statusEl.style.color = '#8b949e'; } }
 })();
+
+// ── Sidebar Tab Switching ──
+function switchSidebarTab(tab, btn) {
+  document.querySelectorAll('.sidebar-tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.sidebar-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('sidebar-' + tab).style.display = 'block';
+  btn.classList.add('active');
+}
