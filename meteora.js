@@ -11,8 +11,11 @@ const POOL_CACHE = { data: {}, lastFetch: {}, TTL: 5 * 60 * 1000 };
 
 // Symbol normalization — handle Meteora's weird naming
 function normalizeSymbol(sym) {
-  return (sym || '').replace(/^\$/, '').toUpperCase();
+  return (sym || '').replace(/^\$/, '').replace(/^m/, 'M').replace(/^b/, 'B').replace(/^j/, 'J').toUpperCase();
 }
+
+// Fallback quotes — if USDC pair not found, try these
+const FALLBACK_QUOTES = ['USDC', 'SOL', 'USDT'];
 
 // ── Fetch multiple pages in parallel ──
 async function fetchAllPools(pages = 10) {
@@ -32,22 +35,35 @@ async function fetchAllPools(pages = 10) {
   return allPools;
 }
 
-// ── Find matching pool ──
+// ── Find matching pool with fallback quotes ──
 function findMatchingPool(pools, baseSymbol, quoteSymbol) {
   const baseNorm = normalizeSymbol(baseSymbol);
   const quoteNorm = normalizeSymbol(quoteSymbol);
 
-  return pools.find(p => {
-    // Match by pool name (e.g., "SOL-USDC", "$WIF-SOL")
-    const nameNorm = normalizeSymbol(p.name);
-    if (nameNorm === `${baseNorm}-${quoteNorm}` || nameNorm === `${quoteNorm}-${baseNorm}`) return true;
-
-    // Match by token symbols (normalized)
+  // Try exact match first
+  let match = pools.find(p => {
     const xSym = normalizeSymbol(p.token_x?.symbol);
     const ySym = normalizeSymbol(p.token_y?.symbol);
     return (xSym === baseNorm && ySym === quoteNorm) ||
            (xSym === quoteNorm && ySym === baseNorm);
   });
+
+  if (match) return match;
+
+  // Fallback: try other quote tokens (USDC → SOL → USDT)
+  for (const fallbackQuote of FALLBACK_QUOTES) {
+    if (fallbackQuote === quoteSymbol) continue; // skip original
+    const fbNorm = normalizeSymbol(fallbackQuote);
+    match = pools.find(p => {
+      const xSym = normalizeSymbol(p.token_x?.symbol);
+      const ySym = normalizeSymbol(p.token_y?.symbol);
+      return (xSym === baseNorm && ySym === fbNorm) ||
+             (xSym === fbNorm && ySym === baseNorm);
+    });
+    if (match) return match;
+  }
+
+  return null;
 }
 
 // ── Fetch pools by token pair dari Meteora ──
@@ -73,6 +89,7 @@ async function fetchMeteoraPools(baseSymbol, quoteSymbol) {
       binStep:   match.pool_config?.bin_step || 10,
       apr:       parseFloat(match.apr || 0) * 100,
       fees24h:   parseFloat(match.fees?.['24h'] || 0),
+      matchedAs: match.name, // track what we actually matched
     };
 
     POOL_CACHE.data[cacheKey] = result;
@@ -144,6 +161,9 @@ async function renderPoolStats(pairId, containerId) {
   }
 
   const aprStr = poolData.apr ? poolData.apr.toFixed(1) + '%' : '—';
+  const matchedNote = poolData.matchedAs !== `${pair.base}-${pair.quote}` 
+    ? ` (matched: ${poolData.matchedAs})` : '';
+
   container.innerHTML = `
     <div class="pool-stats-grid">
       <div class="pool-stat"><div class="pool-stat-label">Volume 24h</div><div class="pool-stat-value accent">${fmtVolume(poolData.volume24h)}</div></div>
@@ -151,7 +171,7 @@ async function renderPoolStats(pairId, containerId) {
       <div class="pool-stat"><div class="pool-stat-label">Fee APR</div><div class="pool-stat-value green">${aprStr}</div></div>
       <div class="pool-stat"><div class="pool-stat-label">Bin Step</div><div class="pool-stat-value">${poolData.binStep} bps</div></div>
     </div>
-    <div class="pool-source">📡 Meteora DLMM · Pool: ${poolData.address?.slice(0,8)}...</div>
+    <div class="pool-source">📡 Meteora DLMM${matchedNote} · Pool: ${poolData.address?.slice(0,8)}...</div>
   `;
 }
 
