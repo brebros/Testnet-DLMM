@@ -42,10 +42,13 @@ function getStateJSON() {
   return JSON.stringify({
     wallet: STATE.wallet,
     balances: STATE.balances,
-    positions: STATE.positions.map(p => ({
-      ...p,
+    positions: STATE.positions.map(p => {
+      const { _feeInterval, ...safePos } = p;
+      return {
+      ...safePos,
       pair: { id: p.pair.id, base: p.pair.base, quote: p.pair.quote, type: p.pair.type, feeTiers: p.pair.feeTiers, binSteps: p.pair.binSteps },
-    })),
+      };
+    }),
     closedPositions: STATE.closedPositions.map(p => ({
       ...p,
       pair: { id: p.pair.id, base: p.pair.base, quote: p.pair.quote, type: p.pair.type, feeTiers: p.pair.feeTiers, binSteps: p.pair.binSteps },
@@ -106,6 +109,10 @@ async function loadState() {
     let source = 'cloud';
     if (!saved) { const raw = localStorage.getItem(STORAGE_KEY); if (raw) { saved = JSON.parse(raw); source = 'local'; } }
     if (!saved || !saved.wallet) return false;
+    
+    // Clear ALL existing fee intervals before restoring (prevent leak)
+    STATE.positions.forEach(p => { if (p._feeInterval) { clearInterval(p._feeInterval); p._feeInterval = null; } });
+    
     STATE.wallet = saved.wallet;
     STATE.balances = saved.balances || {};
     STATE.decisionLog = saved.decisionLog || [];
@@ -428,7 +435,7 @@ function renderTokenList() {
 }
 
 function updateTotalBalance() {
-  const tokenTotal = Object.entries(STATE.balances).reduce((s,[k,v]) => s + v * getPrice(k), 0);
+  const tokenTotal = Object.entries(STATE.balances).reduce((s,[k,v]) => s + v * (getPrice(k) || 0), 0);
   const posTotal = STATE.positions.reduce((s,p) => s + p.totalUSD + p.feeCollected, 0);
   document.getElementById('total-usd').textContent = '$' + (tokenTotal + posTotal).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
@@ -652,6 +659,9 @@ function addLiquidity() {
 // Fee Accumulation + Rules Engine (3s)
 // ═══════════════════════════════════════════
 function startFeeAccumulation(position) {
+  // Clear existing interval if any (prevent leak)
+  if (position._feeInterval) { clearInterval(position._feeInterval); }
+  
   const interval = setInterval(() => {
     const pos = STATE.positions.find(p => p.id === position.id);
     if (!pos) { clearInterval(interval); return; }
@@ -666,6 +676,9 @@ function startFeeAccumulation(position) {
     }
     rulesEngine(); renderPositionList(); updateTotalBalance();
   }, 3000);
+  
+  // Track interval ID on position for cleanup
+  position._feeInterval = interval;
 }
 
 // ═══════════════════════════════════════════
