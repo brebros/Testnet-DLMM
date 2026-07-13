@@ -209,7 +209,10 @@ function getDeterministicCloseRule(pos) {
   const ageMin = (Date.now() - pos.openedAt) / 60000;
   const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
   const pr = cp / pos.entryPrice;
-  const lpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+  // Blend: 70% constant product + 30% linear (less sensitive to small moves)
+    const cpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+    const linearVal = entryVal * (1 - Math.abs(pr - 1) * 0.5);
+    const lpVal = cpVal * 0.7 + linearVal * 0.3;
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
   const pnlPct = holdVal > 0 ? ((pos.feeCollected + (lpVal - holdVal)) / holdVal * 100) : 0;
   if (pnlPct <= RULES.stopLossPct) return { rule: 'STOP_LOSS', pnlPct };
@@ -222,7 +225,10 @@ function updatePnlAndCheckExits(pos) {
   const cp = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
   const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
   const pr = cp / pos.entryPrice;
-  const lpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+  // Blend: 70% constant product + 30% linear (less sensitive to small moves)
+    const cpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+    const linearVal = entryVal * (1 - Math.abs(pr - 1) * 0.5);
+    const lpVal = cpVal * 0.7 + linearVal * 0.3;
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
   const pnlPct = holdVal > 0 ? ((pos.feeCollected + (lpVal - holdVal)) / holdVal * 100) : 0;
   if (pnlPct > 0 && pnlPct > (pos.pendingPeakPnlPct || 0)) { pos.pendingPeakPnlPct = pnlPct; pos.pendingPeakConfirmCount = 1; }
@@ -264,7 +270,10 @@ function autoClosePosition(id, reason) {
   const cp = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
   const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
   const pr = cp / pos.entryPrice;
-  const lpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+  // Blend: 70% constant product + 30% linear (less sensitive to small moves)
+    const cpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+    const linearVal = entryVal * (1 - Math.abs(pr - 1) * 0.5);
+    const lpVal = cpVal * 0.7 + linearVal * 0.3;
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
   STATE.closedPositions.push({ ...pos, closedAt: Date.now(), closeReason: reason, finalFee: pos.feeCollected, finalIL: lpVal - holdVal, finalPnl: pos.feeCollected + (lpVal - holdVal), duration: Date.now() - pos.openedAt });
   STATE.positions = STATE.positions.filter(p => p.id !== id);
@@ -300,7 +309,10 @@ function recordPerformance(pos, closeReason) {
   const cp = getPrice(pos.pair.base) / (getPrice(pos.pair.quote) || 1);
   const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
   const pr = cp / pos.entryPrice;
-  const lpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+  // Blend: 70% constant product + 30% linear (less sensitive to small moves)
+    const cpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+    const linearVal = entryVal * (1 - Math.abs(pr - 1) * 0.5);
+    const lpVal = cpVal * 0.7 + linearVal * 0.3;
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
   const pnlPct = holdVal > 0 ? ((pos.feeCollected + (lpVal - holdVal)) / holdVal * 100) : 0;
   const rangeEff = pos.inRangeSeconds > 0 ? (pos.inRangeSeconds / ((Date.now() - pos.openedAt) / 1000) * 100) : 50;
@@ -608,11 +620,23 @@ function addLiquidity() {
   if ((STATE.balances[pair.quote]||0)<quoteAmt) { alert(`Balance ${pair.quote} tidak cukup!`); return; }
   STATE.balances[pair.base] -= baseAmt; STATE.balances[pair.quote] -= quoteAmt;
   const totalUSD = baseAmt*getPrice(pair.base) + quoteAmt*getPrice(pair.quote);
+  
+  // Auto-widen range for curve strategy in volatile pairs
+  let rangeMin = dlmmState.rangeMin;
+  let rangeMax = dlmmState.rangeMax;
+  const volatility = pair.volatility || 0;
+  if (dlmmState.strategy === 'curve' && volatility > 5) {
+    const widen = Math.min(volatility / 10, 0.3); // max 30% wider
+    rangeMin *= (1 - widen);
+    rangeMax *= (1 + widen);
+    logDecision('RANGE_WIDE', pair.id, `Curve+volatile(${volatility.toFixed(1)}) → range widened ${(widen*100).toFixed(0)}%`, { actor: 'SCREENER' });
+  }
+  
   const pos = {
     id: Date.now(), pairId: pair.id, pair, baseAmt, quoteAmt,
     entryPrice: getPrice(pair.base)/(getPrice(pair.quote)||1), totalUSD,
     feeTier: dlmmState.feeTier, binStep: dlmmState.binStep, strategy: dlmmState.strategy,
-    rangeMin: dlmmState.rangeMin, rangeMax: dlmmState.rangeMax,
+    rangeMin: rangeMin, rangeMax: rangeMax,
     feeCollected: 0, openedAt: Date.now(), swapCount: 0,
     feePeak: 0, outOfRangeSince: null, oorWarned: false, closeTriggered: false, edgeWarned: false,
     peakPnlPct: 0, trailingActive: false, pendingPeakPnlPct: 0, pendingPeakConfirmCount: 0, inRangeSeconds: 0,
@@ -633,7 +657,11 @@ function startFeeAccumulation(position) {
     if (!pos) { clearInterval(interval); return; }
     const cp = getPrice(pos.pair.base)/(getPrice(pos.pair.quote)||1);
     if (cp >= pos.rangeMin && cp <= pos.rangeMax) {
-      pos.feeCollected += pos.baseAmt * 0.02 * getPrice(pos.pair.base) * (pos.feeTier / 100);
+      // Volume-based fee: random volume factor + price distance weighting
+      const priceDist = Math.abs(cp - pos.entryPrice) / pos.entryPrice;
+      const volumeFactor = 0.5 + Math.random() * 1.0; // 0.5-1.5x random volume
+      const distBoost = 1 + priceDist * 2; // more volume when price moves (more swaps)
+      pos.feeCollected += pos.baseAmt * 0.01 * getPrice(pos.pair.base) * (pos.feeTier / 100) * volumeFactor * distBoost;
       pos.swapCount++;
     }
     rulesEngine(); renderPositionList(); updateTotalBalance();
@@ -651,7 +679,10 @@ function renderPositionList() {
     const inRange = cp >= pos.rangeMin && cp <= pos.rangeMax;
     const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
     const pr = cp / pos.entryPrice;
-    const lpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+    // Blend: 70% constant product + 30% linear (less sensitive to small moves)
+    const cpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+    const linearVal = entryVal * (1 - Math.abs(pr - 1) * 0.5);
+    const lpVal = cpVal * 0.7 + linearVal * 0.3;
     const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
     const il = lpVal - holdVal;
     const netPnl = pos.feeCollected + il;
@@ -689,7 +720,10 @@ function removePosition(id) {
   const cp = getPrice(pos.pair.base)/(getPrice(pos.pair.quote)||1);
   const entryVal = pos.baseAmt * pos.entryPrice + pos.quoteAmt;
   const pr = cp / pos.entryPrice;
-  const lpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+  // Blend: 70% constant product + 30% linear (less sensitive to small moves)
+    const cpVal = entryVal * 2 * Math.sqrt(pr) / (1 + pr);
+    const linearVal = entryVal * (1 - Math.abs(pr - 1) * 0.5);
+    const lpVal = cpVal * 0.7 + linearVal * 0.3;
   const holdVal = pos.baseAmt * getPrice(pos.pair.base) + pos.quoteAmt * getPrice(pos.pair.quote);
   recordPerformance(pos, 'manual');
   STATE.closedPositions.push({ ...pos, closedAt: Date.now(), closeReason: 'manual', finalFee: pos.feeCollected, finalIL: lpVal-holdVal, finalPnl: pos.feeCollected+(lpVal-holdVal), duration: Date.now()-pos.openedAt });
