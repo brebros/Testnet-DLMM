@@ -644,7 +644,7 @@ function addLiquidity() {
     entryPrice: getPrice(pair.base)/(getPrice(pair.quote)||1), totalUSD,
     feeTier: dlmmState.feeTier, binStep: dlmmState.binStep, strategy: dlmmState.strategy,
     rangeMin: rangeMin, rangeMax: rangeMax,
-    feeCollected: 0, openedAt: Date.now(), swapCount: 0,
+    feeCollected: 0, openedAt: Date.now(), deployTs: Date.now(), lastChecked: Date.now(), swapCount: 0,
     feePeak: 0, outOfRangeSince: null, oorWarned: false, closeTriggered: false, edgeWarned: false,
     peakPnlPct: 0, trailingActive: false, pendingPeakPnlPct: 0, pendingPeakConfirmCount: 0, inRangeSeconds: 0,
   };
