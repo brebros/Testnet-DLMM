@@ -63,29 +63,35 @@ async function fetchMeteoraPools(baseSymbol, quoteSymbol) {
     return POOL_CACHE.data[cacheKey];
   }
 
-  const baseMint  = TOKEN_MINTS[baseSymbol];
-  const quoteMint = TOKEN_MINTS[quoteSymbol];
-  if (!baseMint || !quoteMint) return null;
-
   try {
-    // Cari pool group by mints
-    const url = `${METEORA_API}/pools/groups/${baseMint},${quoteMint}?page_size=10&sort_by=volume_24h&sort_order=desc`;
+    // Search pool by name (e.g., "SOL-USDC")
+    const query = `${baseSymbol}-${quoteSymbol}`;
+    const url = `${METEORA_API}/pools?query=${encodeURIComponent(query)}&sort_by=tvl:desc&page_size=1`;
     const res  = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    const pools = data.pools || data.items || data || [];
+    const pools = data.data || data.pools || data || [];
     if (!pools.length) return null;
 
-    // Ambil pool dengan volume 24h terbesar
+    // Ambil pool dengan TVL terbesar
     const topPool = pools[0];
-    const result  = {
-      address:    topPool.address || topPool.pool_address,
-      volume24h:  parseFloat(topPool.volume_24h || topPool.trade_volume_24h || 0),
-      tvl:        parseFloat(topPool.tvl || topPool.liquidity || 0),
-      feeTier:    parseFloat(topPool.fee_rate || topPool.trade_fee_rate || 0.003) * 100,
-      binStep:    topPool.bin_step || 10,
-      apr24h:     parseFloat(topPool.apr_24h || topPool.fee_apr || 0),
+    
+    // Parse volume dan fees dari nested objects
+    const volume24h = topPool.volume?.['24h'] || 0;
+    const fees24h = topPool.fees?.['24h'] || 0;
+    const feeTier = topPool.pool_config?.base_fee_pct || 0.3; // dalam persen
+    const binStep = topPool.pool_config?.bin_step || 10;
+    
+    const result = {
+      address:    topPool.address,
+      name:       topPool.name,
+      volume24h:  parseFloat(volume24h),
+      tvl:        parseFloat(topPool.tvl || 0),
+      feeTier:    parseFloat(feeTier), // sudah dalam persen
+      binStep:    parseInt(binStep),
+      apr24h:     parseFloat(topPool.apr || 0) * 100, // APR dalam desimal, konversi ke persen
+      fees24h:    parseFloat(fees24h),
     };
 
     POOL_CACHE.data[cacheKey]      = result;
