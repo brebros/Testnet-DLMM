@@ -149,6 +149,7 @@ document.getElementById('claim-all-btn').onclick = () => {
   STATE.lastFaucet = Date.now();
   renderTokenList();
   updateTotalBalance();
+  persistState();
   document.getElementById('faucet-modal').style.display = 'none';
 };
 document.getElementById('close-faucet-btn').onclick = () => {
@@ -493,6 +494,7 @@ function addLiquidity() {
 
   // Notif success
   showToast(`✅ Posisi ${pair.id} dibuka! $${totalUSD.toFixed(2)} terdeploy.`);
+  persistState();
   renderDLMMPanel();
 }
 
@@ -619,6 +621,7 @@ function removePosition(id) {
   renderTokenList();
   updateTotalBalance();
   renderPositionList();
+  persistState();
   showToast(`🔴 Posisi ${pos.pair.id} ditutup. Fee: +$${pos.feeCollected.toFixed(2)}`);
 }
 
@@ -670,3 +673,8 @@ function fmtRate(rate, pair) {
 // ── Init ──
 fetchPrices();
 setInterval(fetchPrices, 30000); // refresh tiap 30 detik
+
+// Init persistence setelah DOM dan PAIRS tersedia
+window.addEventListener('load', () => {
+  initPersistence();
+});
