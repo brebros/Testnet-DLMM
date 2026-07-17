@@ -301,8 +301,18 @@ function renderDLMMPanel() {
         <button class="btn-sm ${dlmmState.strategy==='spot'?'sel':''}" onclick="setDlmmStrat('spot')">Spot</button>
         <button class="btn-sm ${dlmmState.strategy==='curve'?'sel':''}" onclick="setDlmmStrat('curve')">Curve</button>
         <button class="btn-sm ${dlmmState.strategy==='bidask'?'sel':''}" onclick="setDlmmStrat('bidask')">Bid-Ask</button>
+        <button class="btn-sm ${dlmmState.strategy==='aggressive'?'sel':''}" onclick="setDlmmStrat('aggressive')">Aggressive</button>
+        <button class="btn-sm delta-neutral-btn ${dlmmState.strategy==='delta_neutral'?'sel':''}" onclick="setDlmmStrat('delta_neutral')" title="Advanced: requires hedge position">Δ Neutral</button>
       </div>
       <div class="strat-hint" id="strat-hint">${stratHint(dlmmState.strategy)}</div>
+      ${dlmmState.strategy === 'delta_neutral' ? `
+      <div class="delta-neutral-info">
+        <div class="dn-title">⚡ Delta-Neutral Setup</div>
+        <div class="dn-row"><span>LP Position</span><span>+$X (ini yang lu deploy)</span></div>
+        <div class="dn-row"><span>Short Hedge</span><span>-$X di Drift/dYdX (manual)</span></div>
+        <div class="dn-row"><span>Net IL</span><span>~$0 (hedged)</span></div>
+        <div class="dn-note">Simulator ini handle LP side-nya. Short position perlu dibuka manual di perp exchange.</div>
+      </div>` : ''}
     </div>
 
     <!-- Price Range -->
@@ -358,7 +368,14 @@ function renderDLMMPanel() {
 }
 
 function stratHint(s) {
-  return { spot:'Nyebar rata — cocok kalau ga yakin arah harga', curve:'Numpuk di tengah — maksimal fee saat sideways', bidask:'Numpuk di pinggir — cocok saat yakin volatile' }[s];
+  const hints = {
+    spot:          'Nyebar rata — aman untuk semua kondisi, fee konsisten',
+    curve:         'Numpuk di tengah — maksimal fee saat sideways. ⚠️ Trap di trending market!',
+    bidask:        'Numpuk di pinggir — cocok saat volatile >5%. Fee dari dua arah swing.',
+    aggressive:    'One-sided — high conviction only. IL maksimal kalau prediksi salah.',
+    delta_neutral: '⚡ Advanced: LP fee + short hedge = zero IL. Butuh perp position sebagai hedge.',
+  };
+  return hints[s] || 'Pilih strategi yang sesuai kondisi market';
 }
 
 function setDlmmFee(f) {
@@ -410,9 +427,24 @@ function renderBinPreview() {
 
 function getWeights(n, strategy) {
   const mid = (n-1)/2;
-  if (strategy === 'spot') return Array(n).fill(1);
-  if (strategy === 'curve') return Array.from({length:n}, (_,i) => Math.max(0.05, 1-Math.abs(i-mid)/mid));
-  return Array.from({length:n}, (_,i) => 0.1 + Math.abs(i-mid)/mid);
+  if (strategy === 'spot') {
+    return Array(n).fill(1);
+  }
+  if (strategy === 'curve') {
+    return Array.from({length:n}, (_,i) => Math.max(0.05, 1-Math.abs(i-mid)/mid));
+  }
+  if (strategy === 'bidask') {
+    return Array.from({length:n}, (_,i) => 0.1 + Math.abs(i-mid)/mid);
+  }
+  if (strategy === 'aggressive') {
+    // One-sided: semua modal di sisi kiri (bullish aggressive = beli base saat turun)
+    return Array.from({length:n}, (_,i) => Math.max(0, 1 - (i / mid)));
+  }
+  if (strategy === 'delta_neutral') {
+    // Delta neutral = Bid-Ask distribution tapi visualized dengan warna berbeda
+    return Array.from({length:n}, (_,i) => 0.1 + Math.abs(i-mid)/mid);
+  }
+  return Array(n).fill(1); // fallback spot
 }
 
 function syncQuote(baseVal) {

@@ -192,3 +192,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 .yield-bad { color: var(--red); }
 .oor-timer { color: var(--red); font-size: 11px; font-weight: 600; }
 .duration  { color: var(--text3); font-size: 11px; }
+
+/* ── Strategy buttons ── */
+.delta-neutral-btn { border-color: #a78bfa !important; }
+.delta-neutral-btn.sel { color: #a78bfa !important; background: rgba(167,139,250,0.1) !important; border-color: #a78bfa !important; }
+
+/* ── Delta Neutral Info Box ── */
+.delta-neutral-info { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.3); border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+.dn-title { font-size: 12px; font-weight: 600; color: #a78bfa; margin-bottom: 6px; }
+.dn-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); padding: 2px 0; }
+.dn-note { font-size: 10px; color: var(--text3); margin-top: 6px; line-height: 1.4; border-top: 1px solid rgba(167,139,250,0.2); padding-top: 6px; }
