@@ -363,7 +363,7 @@ function renderDLMMPanel() {
 
   updateRangeInfo();
   renderBinPreview();
-  mountChart(pair.id);
+  setTimeout(() => mountChart(pair.id), 100);
   renderPoolStats(pair.id, 'pool-stats-container');
 }
 
@@ -622,13 +622,12 @@ function renderPositionList() {
         ${pos.lowYieldWarning ? `<div class="pos-row"><span>Yield Warning</span><span class="red">Fee/day di bawah threshold ⚠️</span></div>` : ''}
         <div class="pos-row">
           <span>Fee Earned</span>
-          <span class="green">+$${pos.feeCollected.toFixed(2)}
-            ${pos.dataSource === 'meteora_real' ? '<span class="real-badge">REAL</span>' : '<span class="sim-badge">SIM</span>'}
-          </span>
+          <span class="green">+$${pos.feeCollected.toFixed(2)}</span>
+          ${pos.dataSource === 'meteora_real' ? '<span class="real-badge">REAL</span>' : '<span class="sim-badge">SIM</span>'}
         </div>
         <div class="pos-row sub">
           <span>Est. Fee/day</span>
-          <span class="${pos.feePerDay > 0 ? 'green' : 'text2'}">$${(pos.feePerDay||0).toFixed(2)}/day (${pos.totalUSD > 0 ? ((pos.feePerDay||0)/pos.totalUSD*100).toFixed(3) : '0.000'}%)</span
+          <span class="${pos.feePerDay > 0 ? 'green' : 'text2'}">$${(pos.feePerDay||0).toFixed(2)}/day (${pos.totalUSD > 0 ? ((pos.feePerDay||0)/pos.totalUSD*100).toFixed(3) : '0.000'}%)</span>
         </div>
         ${pos.realFeeData ? `
         <div class="pos-row sub"><span>Volume 24h pool</span><span>${fmtVolume ? fmtVolume(pos.realFeeData.volume24h) : '$'+pos.realFeeData.volume24h.toFixed(0)}</span></div>
