@@ -94,14 +94,14 @@ function generateStableCandles() {
   const candles = [];
   const now = Math.floor(Date.now() / 1000);
   for (let i = 199; i >= 0; i--) {
-    const base = 1 + (Math.random() - 0.5) * 0.002;
+    const base = 1 + (Math.random() - 0.5) * 0.0002;
     candles.push({
       time: now - i * 900,
-      open:  parseFloat((base + (Math.random()-0.5)*0.001).toFixed(5)),
-      high:  parseFloat((base + Math.random()*0.001).toFixed(5)),
-      low:   parseFloat((base - Math.random()*0.001).toFixed(5)),
-      close: parseFloat((base + (Math.random()-0.5)*0.001).toFixed(5)),
-      volume: Math.random() * 1000000,
+      open:  parseFloat((base + (Math.random()-0.5)*0.0001).toFixed(6)),
+      high:  parseFloat((base + Math.random()*0.0001).toFixed(6)),
+      low:   parseFloat((base - Math.random()*0.0001).toFixed(6)),
+      close: parseFloat((base + (Math.random()-0.5)*0.0001).toFixed(6)),
+      volume: Math.random() * 500000,
     });
   }
   return candles;
