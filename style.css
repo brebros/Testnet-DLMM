@@ -62,8 +62,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 .btn-faucet { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 8px; font-size: 13px; cursor: pointer; margin-top: 8px; }
 .btn-faucet:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .btn-faucet:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-remove { width: 100%; background: transparent; border: 1px solid var(--red); color: var(--red); padding: 6px; border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px; }
-.btn-remove:hover { background: rgba(248,113,113,0.1); }
+.btn-remove { width: 100%; background: transparent; border: 1px solid rgba(248,113,113,0.3); color: var(--text3); padding: 4px; border-radius: 6px; font-size: 10px; cursor: pointer; margin-top: 6px; transition: all 0.15s; }
+.btn-remove:hover { border-color: var(--red); color: var(--red); background: rgba(248,113,113,0.05); }
 .btn-sm { flex: 1; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
 .btn-sm.sel { border-color: var(--accent); color: var(--accent); background: rgba(34,211,238,0.08); }
 .btn-sm:hover { border-color: var(--accent); }
@@ -95,7 +95,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 .out-range { color: var(--red); }
 .pos-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pos-row span:last-child { text-align: right; max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
-.pos-net { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 2px; font-weight: 600; font-size: 13px; color: var(--text); }
+.pos-net { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 4px; font-size: 12px; font-weight: 600; color: var(--text); display: flex; justify-content: space-between; }
 
 /* ── Center Panel ── */
 .center-panel { display: flex; flex-direction: column; overflow: hidden; }
