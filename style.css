@@ -87,13 +87,14 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 .empty-state { color: var(--text3); font-size: 12px; text-align: center; padding: 12px 0; }
 
 /* ── Position Card ── */
-.position-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.position-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
 .pos-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .pos-pair { font-weight: 700; font-size: 14px; }
 .pos-status { font-size: 11px; font-weight: 600; }
 .in-range { color: var(--green); }
 .out-range { color: var(--red); }
-.pos-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); }
+.pos-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-row span:last-child { text-align: right; max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
 .pos-net { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 2px; font-weight: 600; font-size: 13px; color: var(--text); }
 
 /* ── Center Panel ── */
